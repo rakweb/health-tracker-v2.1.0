@@ -5,17 +5,8 @@
   <title>Health Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0b1220" />
-  <meta name="app-version" content="2.1.0">
+  <meta name="app-version" content="2.0.0">
   
-  <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('New version activated — reloading');
-    window.location.reload();
-  });
-}
-</script>
-
 <!-- ===== Theme bootstrap (no flash, safe) ===== -->
 <script>
   (function () {
@@ -1487,38 +1478,6 @@ html[data-theme="light"] .toolbar .small{
     }, 100);
   });
 })();
-</script>
-
-<script>
-if ('serviceWorker' in navigator) {
-
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('New version activated — reloading');
-    window.location.reload();
-  });
-
-  navigator.serviceWorker.getRegistration().then(reg => {
-    if (!reg) return;
-
-    if (reg.waiting) {
-      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    }
-
-    reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-
-      newWorker.addEventListener('statechange', () => {
-        if (
-          newWorker.state === 'installed' &&
-          navigator.serviceWorker.controller
-        ) {
-          console.log('New version available');
-          newWorker.postMessage({ type: 'SKIP_WAITING' });
-        }
-      });
-    });
-  });
-}
 </script>
 
 </body>
