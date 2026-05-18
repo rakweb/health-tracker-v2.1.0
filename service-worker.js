@@ -3,14 +3,14 @@ const CACHE_NAME = `ht-${VERSION}`;
 
 const ASSETS = [
   "/",
-  "/index.html",
-  "/manifest.json",
-  "/app.js",
-  "/css/base.css",
-  "/css/theme-dark.css",
-  "/css/theme-light.css",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "./index.html",
+  "./manifest.json",
+  "./app.js",
+  "./css/base.css",
+  "./css/theme-dark.css",
+  "./css/theme-light.css",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
 /* ✅ INSTALL */
