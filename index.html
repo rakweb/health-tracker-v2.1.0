@@ -42,6 +42,8 @@
 <script src="./js/range-slider.js" defer></script>
 <script src="./js/app.js" defer></script>
 
+<script>navigator.serviceWorker.register('./service-worker.js')</script>
+
   <style>
     :root{
       --bg:#0b1220; --panel:#121a2a; --muted:#8aa0c3; --text:#e6eefc;
@@ -771,68 +773,47 @@ html[data-theme="light"] .toolbar .small{
     </div>
   </div>
 
- <script>
+
+
+
+
+<script>
 (function () {
   const root = document.documentElement;
 
-  function isLightForChart() {
-    // If you also force light during PDF export, keep charts light then too
-    return root.getAttribute('data-theme') === 'light' ||
-           root.getAttribute('data-pdf-export') === '1';
-  }
-
-  function applyLegendColor() {
+  function applyTheme() {
     if (!window.Chart) return;
 
-    const light = isLightForChart();
+    const light =
+      root.getAttribute('data-theme') === 'light' ||
+      root.getAttribute('data-pdf-export') === '1';
 
-    // Darken legend labels more than "muted"
-    const legendText = light ? '#0a1220' : '#e6eefc';   // <- darker in light mode
-    const tickText   = light ? '#2b3d57' : '#8aa0c3';   // keep ticks slightly muted
-    const grid       = light ? 'rgba(10,18,32,0.16)' : 'rgba(230,238,252,0.14)';
+    const text = light ? '#0a1220' : '#e6eefc';
+    const grid = light ? 'rgba(10,18,32,0.15)' : 'rgba(230,238,252,0.15)';
 
-     // Force-update the existing metrics chart instance
-    try {
-      const ch = Chart.getChart('metricsChart');
-      if (!ch) return;
+    Chart.defaults.color = text;
 
-      ch.options.plugins = ch.options.plugins || {};
-      ch.options.plugins.legend = ch.options.plugins.legend || {};
-      ch.options.plugins.legend.labels = ch.options.plugins.legend.labels || {};
-      ch.options.plugins.legend.labels.color = legendText;
+    Chart.defaults.scale = Chart.defaults.scale || {};
+    Chart.defaults.scale.grid = Chart.defaults.scale.grid || {};
+    Chart.defaults.scale.grid.color = grid;
 
-      // Also ensure scales use the intended colors (optional, but helps consistency)
-      if (ch.options.scales) {
-        for (const k of Object.keys(ch.options.scales)) {
-          const s = ch.options.scales[k];
-          if (!s) continue;
-          s.ticks = s.ticks || {};
-          s.grid  = s.grid  || {};
-          s.ticks.color = tickText;
-          s.grid.color  = grid;
-        }
-      }
-
-      ch.update();
-    } catch (_) {}
+    const ch = Chart.getChart('metricsChart');
+    if (ch) ch.update();
   }
 
-  // Apply after everything loads, then keep watching for theme changes
-  window.addEventListener('load', () => {
-    // Retry until chart exists (app.js may build it slightly after load)
-    let tries = 0;
-    const t = setInterval(() => {
-      applyLegendColor();
-      if (window.Chart && Chart.getChart('metricsChart')) clearInterval(t);
-      if (++tries > 60) clearInterval(t);
-    }, 100);
-  });
+  window.addEventListener('load', applyTheme);
 
-  // Re-apply when light/dark changes or PDF mode toggles
-  new MutationObserver(applyLegendColor)
-    .observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-pdf-export'] });
+  new MutationObserver(applyTheme).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme', 'data-pdf-export']
+  });
 })();
 </script>
+
+
+ 
+ 
+ 
 
  <!-- ===== Show App Version ===== -->
 <script>
@@ -925,514 +906,9 @@ html[data-theme="light"] .toolbar .small{
   })();
 </script>
  
- <!-- Chart theme bridge: canvas text colors must be set via Chart.js defaults -->
-<script type="module">
-  // Runs AFTER parsing, and in document order relative to defer scripts.
-  // Put this between Chart.js deferred scripts and your deferred app.js script.
-
-  const root = document.documentElement;
-
-  function isLightModeForChart() {
-    // If you force light for PDF export, charts should also be light-styled.
-    if (root.getAttribute('data-pdf-export') === '1') return true;
-    return root.getAttribute('data-theme') === 'light';
-  }
-
-  function applyChartTheme() {
-    // Chart may not be ready yet on first tick; handle safely.
-    if (!window.Chart) return;
-
-    const light = isLightModeForChart();
-
-    // High-contrast colors for light theme canvas rendering
-    const text = light ? '#0a1220' : '#e6eefc';
-    const muted = light ? '#334866' : '#8aa0c3';
-    const grid  = light ? 'rgba(10,18,32,0.16)' : 'rgba(230,238,252,0.14)';
-    const axis  = light ? 'rgba(10,18,32,0.30)' : 'rgba(230,238,252,0.22)';
-
-    // Global defaults (affects new charts)
-    Chart.defaults.color = text;
-    Chart.defaults.borderColor = axis;
-
-    // Scale defaults (ticks/grid)
-    Chart.defaults.scale = Chart.defaults.scale || {};
-    Chart.defaults.scale.ticks = Chart.defaults.scale.ticks || {};
-    Chart.defaults.scale.grid  = Chart.defaults.scale.grid  || {};
-    Chart.defaults.scale.ticks.color = muted;
-    Chart.defaults.scale.grid.color  = grid;
-    Chart.defaults.scale.grid.borderColor = axis;
-
-    // Plugin defaults (legend/title/tooltip)
-    Chart.defaults.plugins = Chart.defaults.plugins || {};
-    Chart.defaults.plugins.legend = Chart.defaults.plugins.legend || {};
-    Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
-    Chart.defaults.plugins.legend.labels.color = muted;
-
-    Chart.defaults.plugins.title = Chart.defaults.plugins.title || {};
-    Chart.defaults.plugins.title.color = text;
-
-    Chart.defaults.plugins.tooltip = Chart.defaults.plugins.tooltip || {};
-    Chart.defaults.plugins.tooltip.titleColor = text;
-    Chart.defaults.plugins.tooltip.bodyColor  = text;
-
-    // Update any charts already created (important if app.js built the chart already)
-    try {
-      const instances = Chart.instances || {};
-      for (const key of Object.keys(instances)) {
-        const ch = instances[key];
-        if (!ch || !ch.options) continue;
-
-        // Force per-chart options where they exist
-        ch.options.color = text;
-
-        if (ch.options.plugins?.legend?.labels) ch.options.plugins.legend.labels.color = muted;
-        if (ch.options.plugins?.title) ch.options.plugins.title.color = text;
-        if (ch.options.plugins?.tooltip) {
-          ch.options.plugins.tooltip.titleColor = text;
-          ch.options.plugins.tooltip.bodyColor  = text;
-        }
-
-        if (ch.options.scales) {
-          for (const s of Object.keys(ch.options.scales)) {
-            const scale = ch.options.scales[s];
-            if (!scale) continue;
-            scale.ticks = scale.ticks || {};
-            scale.grid  = scale.grid  || {};
-            if (scale.ticks.color == null) scale.ticks.color = muted;
-            if (scale.grid.color  == null) scale.grid.color  = grid;
-            if (scale.grid.borderColor == null) scale.grid.borderColor = axis;
-          }
-        }
-
-        ch.update();
-      }
-    } catch {
-      // no-op
-    }
-  }
-
-  // Apply once after deferred scripts run
-  // (module runs after parse; Chart defer scripts should execute before this if ordered above it)
-  applyChartTheme();
-
-  // Re-apply when theme toggles / PDF export toggles
-  const obs = new MutationObserver(() => applyChartTheme());
-  obs.observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-pdf-export'] });
-
-  // As a fallback (in case Chart loads slightly later), retry a few times
-  let tries = 0;
-  const t = setInterval(() => {
-    applyChartTheme();
-    if (window.Chart || ++tries > 20) clearInterval(t);
-  }, 50);
-</script>
  
-<script>
-(function () {
-  const root = document.documentElement;
 
-  function wantsLightChart() {
-    // If you force light theme for PDF exports, chart should also be light-styled
-    return root.getAttribute('data-pdf-export') === '1' ||
-           root.getAttribute('data-theme') === 'light';
-  }
 
-  function applyChartTheme() {
-    if (!window.Chart) return;
-
-    const light = wantsLightChart();
-
-    // High-contrast chart colors
-    const text = light ? '#0a1220' : '#e6eefc';
-    const muted = light ? '#2b3d57' : '#8aa0c3';
-    const grid  = light ? 'rgba(10,18,32,0.16)' : 'rgba(230,238,252,0.14)';
-    const axis  = light ? 'rgba(10,18,32,0.28)' : 'rgba(230,238,252,0.22)';
-
-    // Global defaults affect any charts created after this runs
-    Chart.defaults.color = text;
-    Chart.defaults.borderColor = axis;
-
-    Chart.defaults.scale = Chart.defaults.scale || {};
-    Chart.defaults.scale.ticks = Chart.defaults.scale.ticks || {};
-    Chart.defaults.scale.grid  = Chart.defaults.scale.grid  || {};
-    Chart.defaults.scale.ticks.color = muted;
-    Chart.defaults.scale.grid.color  = grid;
-    Chart.defaults.scale.grid.borderColor = axis;
-
-    Chart.defaults.plugins = Chart.defaults.plugins || {};
-    Chart.defaults.plugins.legend = Chart.defaults.plugins.legend || {};
-    Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
-    Chart.defaults.plugins.legend.labels.color = muted;
-
-    Chart.defaults.plugins.title = Chart.defaults.plugins.title || {};
-    Chart.defaults.plugins.title.color = text;
-
-    Chart.defaults.plugins.tooltip = Chart.defaults.plugins.tooltip || {};
-    Chart.defaults.plugins.tooltip.titleColor = text;
-    Chart.defaults.plugins.tooltip.bodyColor  = text;
-
-    // Update the existing metrics chart if it already exists
-    try {
-      const ch = Chart.getChart('metricsChart');
-      if (ch) {
-        // Apply per-chart overrides to ensure it picks up the theme immediately
-        ch.options.color = text;
-
-        if (ch.options.plugins?.legend?.labels) ch.options.plugins.legend.labels.color = muted;
-        if (ch.options.plugins?.title) ch.options.plugins.title.color = text;
-        if (ch.options.plugins?.tooltip) {
-          ch.options.plugins.tooltip.titleColor = text;
-          ch.options.plugins.tooltip.bodyColor  = text;
-        }
-
-        if (ch.options.scales) {
-          for (const k of Object.keys(ch.options.scales)) {
-            const s = ch.options.scales[k];
-            if (!s) continue;
-            s.ticks = s.ticks || {};
-            s.grid  = s.grid  || {};
-            s.ticks.color = muted;
-            s.grid.color  = grid;
-            s.grid.borderColor = axis;
-          }
-        }
-
-        ch.update();
-      }
-    } catch (e) {
-      // Ignore – safest behavior
-    }
-  }
-
-  // Apply after load (ensures Chart.js + app.js have had time to create the chart)
-  window.addEventListener('load', () => {
-    // Retry a few times in case the chart is created shortly after load
-    let tries = 0;
-    const t = setInterval(() => {
-      applyChartTheme();
-      if (window.Chart && Chart.getChart('metricsChart')) clearInterval(t);
-      if (++tries > 40) clearInterval(t);
-    }, 50);
-  });
-
-  // Re-apply when theme changes or when PDF export mode toggles
-  const obs = new MutationObserver(() => applyChartTheme());
-  obs.observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-pdf-export'] });
-})();
-</script>
-
- <script>
-(function () {
-  const root = document.documentElement;
-
-  function isLightForCharts() {
-    // Light mode OR PDF export mode should use dark text on light background
-    return root.getAttribute('data-theme') === 'light' ||
-           root.getAttribute('data-pdf-export') === '1';
-  }
-
-  function chartColors() {
-    const light = isLightForCharts();
-    return {
-      // Make legend and axis labels match card title darkness
-      text:  light ? '#0a1220' : '#e6eefc',
-      // Slightly softer text if you want ticks a bit muted; set equal to text if you want all dark
-      tick:  light ? '#0a1220' : '#e6eefc',
-      // Gridlines/borders tuned for visibility
-      grid:  light ? 'rgba(10,18,32,0.14)' : 'rgba(230,238,252,0.14)',
-      axis:  light ? 'rgba(10,18,32,0.28)' : 'rgba(230,238,252,0.22)'
-    };
-  }
-
-        // Legend
-        chart.options.plugins = chart.options.plugins || {};
-        chart.options.plugins.legend = chart.options.plugins.legend || {};
-        chart.options.plugins.legend.labels = chart.options.plugins.legend.labels || {};
-        chart.options.plugins.legend.labels.color = c.text;
-
-        // Title (if used)
-        if (chart.options.plugins.title) {
-          chart.options.plugins.title.color = c.text;
-        }
-
-        // Scales: ticks + axis title + grid
-        chart.options.scales = chart.options.scales || {};
-        for (const key of Object.keys(chart.options.scales)) {
-          const s = chart.options.scales[key];
-          if (!s) continue;
-
-          s.ticks = s.ticks || {};
-          s.grid  = s.grid  || {};
-          s.title = s.title || {};
-
-          // Tick labels (numbers/dates)
-          s.ticks.color = c.tick;
-
-          // Axis title label (“Glucose (mg/dL)”, etc.)
-          s.title.color = c.text;
-
-          // Grid + axis/border
-          s.grid.color = c.grid;
-          // Chart.js uses borderColor for the axis line in v4
-          s.border = s.border || {};
-          s.border.color = c.axis;
-        }
-
-        // Also set global default color for any plugin text that uses Chart.defaults.color
-        chart.options.color = c.text;
-      }
-    };
-
-    Chart.register(plugin);
-    return true;
-  }
-
-  function applyToExistingCharts() {
-    if (!window.Chart) return;
-
-    try {
-      // Update the specific chart by canvas id if present
-      const ch = Chart.getChart('metricsChart');
-      if (ch) ch.update();
-
-      // Also update any other charts that might exist
-      if (Chart.instances) {
-        for (const id of Object.keys(Chart.instances)) {
-          const inst = Chart.instances[id];
-          if (inst && inst.update) inst.update();
-        }
-      }
-    } catch (_) {}
-  }
-
-    // Start immediately
-  boot();
-
-  // Re-apply whenever theme changes (light/dark) or PDF export mode toggles
-  new MutationObserver(() => {
-    if (ensurePluginRegistered()) applyToExistingCharts();
-  }).observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-pdf-export'] });
-})();
-</script>
-
-<script>
-(function () {
-  const root = document.documentElement;
-
-  function wantLight() {
-    // If you force light for PDF export, keep charts light then too
-    return root.getAttribute('data-theme') === 'light' ||
-           root.getAttribute('data-pdf-export') === '1';
-  }
-
-  function applyToChart(ch) {
-    if (!ch || !ch.options) return;
-
-    const light = wantLight();
-
-    // Make legend + axis labels DARK like the card title
-    const text = light ? '#0a1220' : '#e6eefc';   // legend + axis titles
-    const ticks = light ? '#0a1220' : '#e6eefc';  // axis tick labels (numbers/dates)
-    const grid = light ? 'rgba(10,18,32,0.14)' : 'rgba(230,238,252,0.14)';
-
-    // Legend
-    ch.options.plugins = ch.options.plugins || {};
-    ch.options.plugins.legend = ch.options.plugins.legend || {};
-    ch.options.plugins.legend.labels = ch.options.plugins.legend.labels || {};
-    ch.options.plugins.legend.labels.color = text;
-
-    // Tooltip (optional consistency)
-    ch.options.plugins.tooltip = ch.options.plugins.tooltip || {};
-    ch.options.plugins.tooltip.titleColor = text;
-    ch.options.plugins.tooltip.bodyColor = text;
-
-    // Scales: ticks + titles + grid
-    if (ch.options.scales) {
-      for (const k of Object.keys(ch.options.scales)) {
-        const s = ch.options.scales[k];
-        if (!s) continue;
-
-        s.ticks = s.ticks || {};
-        s.grid = s.grid || {};
-        s.title = s.title || {};
-
-        s.ticks.color = ticks;     // tick labels
-        s.title.color = text;      // axis title labels
-        s.grid.color = grid;       // gridlines
-        // NOTE: intentionally NOT touching s.border to avoid breaking charts
-      }
-    }
-  }
-
-  // Debounce updates so we never thrash the chart
-  let pending = null;
-  function requestUpdate() {
-    if (pending) return;
-    pending = setTimeout(() => {
-      pending = null;
-      if (!window.Chart) return;
-
-      try {
-        // Prefer your metrics chart
-        const ch = Chart.getChart('metricsChart');
-        if (ch) {
-          applyToChart(ch);
-          ch.update();
-          return;
-        }
-
-        // Fallback: apply to any charts that exist
-        if (Chart.instances) {
-          for (const id of Object.keys(Chart.instances)) {
-            const inst = Chart.instances[id];
-            applyToChart(inst);
-            inst && inst.update && inst.update();
-          }
-        }
-      } catch (e) {
-        // no-op (safety)
-      }
-    }, 80);
-  }
-
-  // Wait until chart exists, then apply once
-  window.addEventListener('load', () => {
-    let tries = 0;
-    const timer = setInterval(() => {
-      tries++;
-      if (window.Chart && Chart.getChart('metricsChart')) {
-        clearInterval(timer);
-        requestUpdate();
-      }
-      if (tries > 120) clearInterval(timer); // ~12s max
-    }, 100);
-  });
-
-  // Re-apply on theme changes and on PDF export mode changes
-  new MutationObserver(requestUpdate)
-    .observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-pdf-export'] });
-
-})();
-</script>
-
-<script>
-(function () {
-  window.addEventListener('load', () => {
-    const chartCard = document.getElementById('chartCard');
-    const vm = document.getElementById('viewMode');
-    const tc = document.getElementById('toggleChart');
-    if (!chartCard || !vm || !tc) return;
-
-    // If chart is hidden, force defaults once
-    const cs = getComputedStyle(chartCard);
-    if (cs.display === 'none' || cs.visibility === 'hidden') {
-      vm.value = 'both';
-      vm.dispatchEvent(new Event('change', { bubbles: true }));
-      tc.value = 'on';
-      tc.dispatchEvent(new Event('change', { bubbles: true }));
-
-      // If something still hides it, at least ensure the element is visible
-      setTimeout(() => {
-        chartCard.style.setProperty('display', 'block', 'important');
-      }, 50);
-    }
-  });
-})();
-</script>
-
-<script>
-(function () {
-  const root = document.documentElement;
-
-  function wantLightChart() {
-    // Light theme OR PDF export force-light mode
-    return root.getAttribute('data-theme') === 'light' ||
-           root.getAttribute('data-pdf-export') === '1';
-  }
-
-  function applyChartTextColors(chart) {
-    if (!chart?.options) return;
-
-    const light = wantLightChart();
-
-    // Make legend and axis titles dark like the card title
-    const legendAndTitles = light ? '#0a1220' : '#e6eefc';
-    // Make tick labels dark as requested
-    const ticks = light ? '#0a1220' : '#e6eefc';
-    // Gridlines subtle but visible
-    const grid = light ? 'rgba(10,18,32,0.14)' : 'rgba(230,238,252,0.14)';
-
-    // Legend
-    chart.options.plugins = chart.options.plugins || {};
-    chart.options.plugins.legend = chart.options.plugins.legend || {};
-    chart.options.plugins.legend.labels = chart.options.plugins.legend.labels || {};
-    chart.options.plugins.legend.labels.color = legendAndTitles;
-
-    // Tooltip (optional readability)
-    chart.options.plugins.tooltip = chart.options.plugins.tooltip || {};
-    chart.options.plugins.tooltip.titleColor = legendAndTitles;
-    chart.options.plugins.tooltip.bodyColor  = legendAndTitles;
-
-    // Scales (ticks + axis titles + grid)
-    if (chart.options.scales) {
-      for (const key of Object.keys(chart.options.scales)) {
-        const s = chart.options.scales[key];
-        if (!s) continue;
-
-        s.ticks = s.ticks || {};
-        s.title = s.title || {};
-        s.grid  = s.grid  || {};
-
-        s.ticks.color = ticks;                 // tick labels (dates/numbers)
-        s.title.color = legendAndTitles;       // axis title labels
-        s.grid.color  = grid;                  // grid lines
-        // Intentionally not touching s.border (can be version/config sensitive)
-      }
-    }
-  }
-
-  // Debounced updater (prevents thrashing)
-  let pending = false;
-  function requestUpdate() {
-    if (pending) return;
-    pending = true;
-    setTimeout(() => {
-      pending = false;
-      if (!window.Chart?.getChart) return;
-
-      const chart = Chart.getChart('metricsChart');
-      if (chart) {
-        applyChartTextColors(chart);
-        chart.update();
-      }
-    }, 80);
-  }
-
-  // Watch for theme changes
-  new MutationObserver(requestUpdate).observe(root, {
-    attributes: true,
-    attributeFilter: ['data-theme', 'data-pdf-export']
-  });
-
-  // Apply after chart exists; also handle chart recreation
-  window.addEventListener('load', () => {
-    let last = null;
-    let tries = 0;
-
-    const timer = setInterval(() => {
-      tries++;
-      const chart = window.Chart?.getChart?.('metricsChart') || null;
-
-      if (chart && chart !== last) {
-        last = chart;
-        requestUpdate();
-      }
-
-      if (tries > 200) clearInterval(timer); // stop after ~20s
-    }, 100);
-  });
-})();
-</script>
 
 </body>
 </html>
