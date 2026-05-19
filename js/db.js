@@ -5,11 +5,18 @@ let db;
 /* ✅ OPEN DB */
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open("health-tracker-db", 2); // ✅ bump version
 
     req.onupgradeneeded = (e) => {
-      db = e.target.result;
-      db.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
+      const db = e.target.result;
+
+      // ✅ Create store ONLY if missing
+      if (!db.objectStoreNames.contains("entries")) {
+        db.createObjectStore("entries", {
+          keyPath: "id",
+          autoIncrement: true
+        });
+      }
     };
 
     req.onsuccess = (e) => {
