@@ -39,7 +39,6 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
 
 <!-- ✅ Load your scripts LAST -->
-<script src="./js/db.js"></script>
 <script src="./js/range-slider.js" defer></script>
 <script src="./js/app.js" defer></script>
 
@@ -604,7 +603,6 @@ html[data-theme="light"] .toolbar .small{
     <div class="modal">
       <div class="modal-header">
         <h2 id="entryModalTitle">Add Entry</h2>
-		addEntry(entryData);
 		<button class="btn" id="btnSaveEntry">Save Entry</button>
         <button class="btn" onclick="UI.closeEntry()">Close</button>
       </div>
@@ -909,11 +907,17 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <script>
-navigator.serviceWorker.addEventListener('controllerchange', () => {
-  const toast = document.getElementById('updateToast');
-  if (toast) toast.classList.add('show');
+if ('serviceWorker' in navigator) {
+  let refreshing = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;   // ✅ prevents loop
+    refreshing = true;
+
+    console.log('🔄 New version activated — reloading once');
+    window.location.reload();
   });
-  });
+}
 </script>
 
 </body>
