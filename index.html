@@ -5,7 +5,7 @@
   <title>Health Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0b1220" />
-  <meta name="app-version" content="2.1.0">
+  <meta name="app-version" content="2.1.1">
   
 <!-- ===== Theme bootstrap (no flash, safe) ===== -->
 <script>
@@ -913,22 +913,6 @@ if ('serviceWorker' in navigator) {
     window.location.reload();
   });
 }
-</script>
-
-<script>
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-});
-
-document.getElementById('btnInstall').addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-
-  deferredPrompt.prompt();   // ✅ THIS FIXES THE WARNING
-  await deferredPrompt.userChoice;
-});
 </script>
 
 </body>
