@@ -15,7 +15,6 @@
   ✅ Global UI / Actions
  */
 
-openDB();
 
 /* ==================== PWA: SW Register, Install, Updates, labels ==================== */
 let deferredPrompt = null, swReg = null;
